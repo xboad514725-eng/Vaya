@@ -1,0 +1,50 @@
+name: AI Text-to-Video Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ai-text-to-video.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Vaya
+        uses: actions/checkout@v4
+
+      - name: Checkout open-source videogen engine
+        uses: actions/checkout@v4
+        with:
+          repository: mkamranr/videogen
+          path: videogen-engine
+
+      - name: Build CPU-only video generator
+        run: docker build --progress=plain -f videogen-engine/docker/Dockerfile.cpu -t videogen:cpu videogen-engine
+
+      - name: Check available CPU model
+        run: docker run --rm --shm-size=2g videogen:cpu doctor
+
+      - name: Generate a short Luxor scene from text only
+        run: |
+          mkdir -p output
+          docker run --rm --shm-size=2g \
+            -v "${{ github.workspace }}/output:/outputs" \
+            -e HF_HUB_DISABLE_XET=1 \
+            videogen:cpu t2v \
+            "A cinematic establishing shot of ancient Luxor, Egypt at golden sunrise, monumental sandstone temple columns, warm desert light, subtle atmospheric haze, slow cinematic camera movement, realistic documentary cinematography" \
+            --width 256 --height 256 --frames 9 --steps 2 --allow-slow \
+            --output /outputs/vayana-luxor-ai-test.mp4
+
+      - name: Upload generated MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: vayana-luxor-ai-text-to-video
+          path: output/vayana-luxor-ai-test.mp4
+          if-no-files-found: error
+          retention-days: 3
