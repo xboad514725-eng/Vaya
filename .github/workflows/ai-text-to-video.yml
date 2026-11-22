@@ -1,4 +1,5 @@
 name: AI Text-to-Video Test
+run-name: Generate a no-image Luxor AI video
 
 on:
   push:
