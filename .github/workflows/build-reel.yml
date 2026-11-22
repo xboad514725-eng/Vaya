@@ -1,6 +1,11 @@
 name: Build VAYANA Reel
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-reel.yml"
+      - "scripts/build_reel.py"
   workflow_dispatch:
     inputs:
       theme:
@@ -31,8 +36,8 @@ jobs:
 
       - name: Render vertical MP4
         env:
-          REEL_TITLE: ${{ inputs.theme }}
-          REEL_SUBTITLE: ${{ inputs.subtitle }}
+          REEL_TITLE: ${{ inputs.theme || 'Discover Luxor with VAYANA' }}
+          REEL_SUBTITLE: ${{ inputs.subtitle || 'Ancient wonders. Unforgettable moments. Travel Your Way.' }}
         run: python scripts/build_reel.py
 
       - name: Publish generated video to this repository
