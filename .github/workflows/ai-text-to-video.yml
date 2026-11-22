@@ -30,8 +30,10 @@ jobs:
 
       - name: Add missing tokenizer dependency
         run: |
-          printf 'FROM videogen:cpu\\nRUN pip install --no-cache-dir tiktoken\\n' > videogen-engine/Dockerfile.cpu.tiktoken
-          docker build --progress=plain -f videogen-engine/Dockerfile.cpu.tiktoken -t videogen:cpu-fixed videogen-engine
+          docker run -d --name videogen-deps --entrypoint sleep videogen:cpu infinity
+          docker exec videogen-deps pip install --no-cache-dir tiktoken
+          docker commit videogen-deps videogen:cpu-fixed
+          docker rm -f videogen-deps
 
       - name: Check available CPU model
         run: docker run --rm --shm-size=2g videogen:cpu-fixed doctor
@@ -42,7 +44,7 @@ jobs:
           docker run --rm --shm-size=2g \
             -v "${{ github.workspace }}/output:/outputs" \
             -e HF_HUB_DISABLE_XET=1 \
-            videogen:cpu t2v \
+            videogen:cpu-fixed t2v \
             "A cinematic establishing shot of ancient Luxor, Egypt at golden sunrise, monumental sandstone temple columns, warm desert light, subtle atmospheric haze, slow cinematic camera movement, realistic documentary cinematography" \
             --width 256 --height 256 --frames 9 --steps 2 --allow-slow \
             --output /outputs/vayana-luxor-ai-test.mp4
