@@ -32,7 +32,7 @@ jobs:
         run: |
           docker run -d --name videogen-deps --entrypoint sleep videogen:cpu infinity
           docker exec videogen-deps pip install --no-cache-dir tiktoken
-          docker commit videogen-deps videogen:cpu-fixed
+          docker commit --change='ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]' --change='CMD ["doctor"]' videogen-deps videogen:cpu-fixed
           docker rm -f videogen-deps
 
       - name: Check available CPU model
