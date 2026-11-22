@@ -87,23 +87,57 @@ with tempfile.TemporaryDirectory() as td:
     if len(rendered) < 3:
         raise SystemExit("Not enough website images could be downloaded; no video was published.")
 
-    # Build gentle zoom motion per scene, then concatenate the clips.
+    # Render each still as a 5-second cinematic camera move, then blend scenes with cross-dissolves.
     clips = []
+    duration = 5
+    fps = 30
+    frames = duration * fps
     for idx, frame in enumerate(rendered):
         clip = td / f"clip_{idx:02d}.mp4"
-        vf = "scale=1200:2134,zoompan=z='min(zoom+0.0007,1.06)':d=120:s=1080x1920:fps=30,setsar=1,format=yuv420p"
+        progress = f"(0.5-0.5*cos(PI*on/{frames-1}))"
+        if idx % 2 == 0:
+            zoom = f"1+0.055*{progress}"
+            pan_x = f"(iw-iw/zoom)*(0.18+0.52*on/{frames-1})"
+        else:
+            zoom = f"1.055-0.055*{progress}"
+            pan_x = f"(iw-iw/zoom)*(0.70-0.52*on/{frames-1})"
+        pan_y = f"(ih-ih/zoom)*(0.30+0.36*on/{frames-1})"
+        vf = (
+            f"scale=1200:2134,"
+            f"zoompan=z='{zoom}':x='{pan_x}':y='{pan_y}':"
+            f"d={frames}:s=1080x1920:fps={fps},"
+            "setsar=1,fps=30,format=yuv420p"
+        )
         subprocess.run([
-            "ffmpeg","-y","-loop","1","-i",str(frame),"-t","4",
-            "-vf",vf,"-an","-c:v","libx264","-preset","veryfast","-crf","21",str(clip)
+            "ffmpeg","-y","-loop","1","-i",str(frame),"-frames:v",str(frames),
+            "-vf",vf,"-an","-c:v","libx264","-preset","veryfast","-crf","19",
+            "-pix_fmt","yuv420p",str(clip)
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         clips.append(clip)
 
-    listing = td / "clips.txt"
-    listing.write_text("".join(f"file '{p.as_posix()}'\n" for p in clips))
+    # Chain elegant cross-dissolves; each next scene eases in over the previous one.
+    transition = 0.9
+    inputs = []
+    for clip in clips:
+        inputs.extend(["-i", str(clip)])
+    filters = []
+    previous = "[0:v]"
+    for idx in range(1, len(clips)):
+        out_label = f"[mix{idx}]"
+        offset = idx * (duration - transition)
+        filters.append(
+            f"{previous}[{idx}:v]xfade=transition=fade:duration={transition}:"
+            f"offset={offset},format=yuv420p{out_label}"
+        )
+        previous = out_label
+
     final = OUT / "vayana-reel.mp4"
     subprocess.run([
-        "ffmpeg","-y","-f","concat","-safe","0","-i",str(listing),
-        "-c","copy","-movflags","+faststart",str(final)
+        "ffmpeg","-y",*inputs,
+        "-filter_complex",";".join(filters),
+        "-map",previous,"-an","-r","30","-c:v","libx264",
+        "-preset","medium","-crf","19","-pix_fmt","yuv420p",
+        "-movflags","+faststart",str(final)
     ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     (OUT / "vayana-reel.txt").write_text(
         "VAYANA draft reel\n"
