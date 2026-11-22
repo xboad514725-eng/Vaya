@@ -31,7 +31,7 @@ jobs:
       - name: Add missing tokenizer dependency
         run: |
           docker run -d --name videogen-deps --entrypoint sleep videogen:cpu infinity
-          docker exec videogen-deps pip install --no-cache-dir tiktoken
+          docker exec videogen-deps pip install --no-cache-dir tiktoken sentencepiece protobuf
           docker commit --change='ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]' --change='CMD ["doctor"]' videogen-deps videogen:cpu-fixed
           docker rm -f videogen-deps
 
