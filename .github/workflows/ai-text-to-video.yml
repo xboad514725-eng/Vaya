@@ -28,8 +28,13 @@ jobs:
       - name: Build CPU-only video generator
         run: docker build --progress=plain -f videogen-engine/docker/Dockerfile.cpu -t videogen:cpu videogen-engine
 
+      - name: Add missing tokenizer dependency
+        run: |
+          printf 'FROM videogen:cpu\\nRUN pip install --no-cache-dir tiktoken\\n' > videogen-engine/Dockerfile.cpu.tiktoken
+          docker build --progress=plain -f videogen-engine/Dockerfile.cpu.tiktoken -t videogen:cpu-fixed videogen-engine
+
       - name: Check available CPU model
-        run: docker run --rm --shm-size=2g videogen:cpu doctor
+        run: docker run --rm --shm-size=2g videogen:cpu-fixed doctor
 
       - name: Generate a short Luxor scene from text only
         run: |
