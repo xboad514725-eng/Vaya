@@ -1,0 +1,45 @@
+name: Build VAYANA Reel
+
+on:
+  workflow_dispatch:
+    inputs:
+      theme:
+        description: "Reel theme"
+        required: true
+        default: "Discover Luxor with VAYANA"
+      subtitle:
+        description: "Short supporting line"
+        required: true
+        default: "Ancient wonders. Unforgettable moments. Travel Your Way."
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Vaya
+        uses: actions/checkout@v4
+
+      - name: Install video tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install --upgrade pip pillow
+
+      - name: Render vertical MP4
+        env:
+          REEL_TITLE: ${{ inputs.theme }}
+          REEL_SUBTITLE: ${{ inputs.subtitle }}
+        run: python scripts/build_reel.py
+
+      - name: Publish generated video to this repository
+        run: |
+          mkdir -p media
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add media/vayana-reel.mp4 media/vayana-reel.txt
+          git commit -m "Build VAYANA social reel" || echo "No changes to publish"
+          git push
