@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build a simple, original, vertical VAYANA slideshow reel from existing public site image URLs."""
-import os, subprocess, urllib.request, tempfile
+import os, subprocess, urllib.request, tempfile, time
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
@@ -13,9 +13,9 @@ SUBTITLE = os.getenv("REEL_SUBTITLE", "Ancient wonders. Unforgettable moments. T
 
 # These are image URLs already referenced by the current VAYANA website.
 SCENES = [
-    ("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Hot_air_balloons_over_Luxor%2C_Egypt.jpg/1200px-Hot_air_balloons_over_Luxor%2C_Egypt.jpg", "A DIFFERENT VIEW OF LUXOR"),
+    ("https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Hot_air_balloons_over_Luxor%2C_Egypt.jpg/800px-Hot_air_balloons_over_Luxor%2C_Egypt.jpg", "A DIFFERENT VIEW OF LUXOR"),
     ("https://upload.wikimedia.org/wikipedia/commons/c/c8/Forest_of_eternity._Temple_of_Karnak%2C_Egypt.jpg", "WALK THROUGH HISTORY"),
-    ("https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Templo_de_Luxor%2C_Luxor%2C_Egipto%2C_2022-04-01%2C_DD_02.jpg/1200px-Templo_de_Luxor%2C_Luxor%2C_Egipto%2C_2022-04-01%2C_DD_02.jpg", "DISCOVER TIMELESS LANDMARKS"),
+    ("https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Templo_de_Luxor%2C_Luxor%2C_Egipto%2C_2022-04-01%2C_DD_02.jpg/800px-Templo_de_Luxor%2C_Luxor%2C_Egipto%2C_2022-04-01%2C_DD_02.jpg", "DISCOVER TIMELESS LANDMARKS"),
     ("https://commons.wikimedia.org/wiki/Special:FilePath/Temple_of_Hatshepsut,_Deir_el-Bahari,_Luxor,_Egypt.jpg", "EXPERIENCES MADE YOUR WAY"),
     ("https://commons.wikimedia.org/wiki/Special:FilePath/Felucca_on_the_Nile_in_Luxor.jpg", "SLOW DOWN BY THE NILE"),
     ("https://commons.wikimedia.org/wiki/Special:FilePath/Luxor_Temple_at_night.jpg", "LUXOR, AFTER DARK"),
@@ -26,13 +26,22 @@ def font(size, bold=False):
     return ImageFont.truetype(p, size)
 
 def download(url, target):
-    req = urllib.request.Request(url, headers={"User-Agent": "VAYANA-ReelBuilder/1.0"})
-    with urllib.request.urlopen(req, timeout=35) as r:
-        data = r.read()
-    target.write_bytes(data)
-    im = Image.open(target)
-    im.verify()
-    return True
+    # Wikimedia throttles bursts; retry politely and use a browser-like User-Agent.
+    headers = {"User-Agent": "VAYANA-ReelBuilder/1.0 (travel content; contact: xboad514725@gmail.com)", "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"}
+    last_error = None
+    for attempt in range(5):
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=45) as r:
+                data = r.read()
+            target.write_bytes(data)
+            with Image.open(target) as im:
+                im.verify()
+            return True
+        except Exception as e:
+            last_error = e
+            time.sleep(4 * (attempt + 1))
+    raise last_error
 
 def cover(im):
     im = im.convert("RGB")
@@ -53,6 +62,7 @@ with tempfile.TemporaryDirectory() as td:
         except Exception as e:
             print(f"Skipping image {i}: {e}")
             continue
+        time.sleep(3)
         # Darken lower area for legible editorial typography.
         shade = Image.new("RGBA", (W, H), (0,0,0,0))
         sd = ImageDraw.Draw(shade)
