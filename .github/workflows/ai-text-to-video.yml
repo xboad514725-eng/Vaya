@@ -38,6 +38,12 @@ jobs:
       - name: Check available CPU model
         run: docker run --rm --shm-size=2g videogen:cpu-fixed doctor
 
+      - name: Preflight the CPU model and memory plan
+        run: |
+          videogen:cpu-fixed plan \
+            "A cinematic establishing shot of ancient Luxor, Egypt at golden sunrise, monumental sandstone temple columns, warm desert light, subtle atmospheric haze, slow cinematic camera movement, realistic documentary cinematography" \
+            --model wan21-t2v-1.3b --preset draft --width 256 --height 256 --frames 9 --steps 4 --cfg 1.0 --allow-slow
+
       - name: Generate a short Luxor scene from text only
         run: |
           mkdir -p output
@@ -46,7 +52,7 @@ jobs:
             -e HF_HUB_DISABLE_XET=1 \
             videogen:cpu-fixed t2v \
             "A cinematic establishing shot of ancient Luxor, Egypt at golden sunrise, monumental sandstone temple columns, warm desert light, subtle atmospheric haze, slow cinematic camera movement, realistic documentary cinematography" \
-            --width 256 --height 256 --frames 9 --steps 2 --allow-slow \
+            --model wan21-t2v-1.3b --preset draft --width 256 --height 256 --frames 9 --steps 4 --cfg 1.0 --allow-slow \
             --output /outputs/vayana-luxor-ai-test.mp4
 
       - name: Upload generated MP4
